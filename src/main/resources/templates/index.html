@@ -94,7 +94,7 @@
             }
         }, false);
     };
-    form.addEventListener('submit', function (e) {
+    form.addEventListener('submit', function (event) {
         event.preventDefault();
         var csrf = $('#_csrf').val();
         var message = $('#message').val();
