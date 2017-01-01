@@ -1,0 +1,8 @@
+# Cloud Foundry deployment config
+---
+applications:
+  - name: spring-real-time-messaging
+    buildpack: java_buildpack
+    path: target/real-time-messaging.jar
+    services:
+      - rabbitmq
