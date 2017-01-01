@@ -5,8 +5,6 @@
     <link rel="stylesheet" href="/webjars/bootstrap/3.3.1/css/bootstrap.min.css"/>
     <script src="/webjars/jquery/2.1.3/dist/jquery.min.js"></script>
     <script src="/webjars/bootstrap/3.3.1/js/bootstrap.min.js"></script>
-    <script src="/webjars/sockjs-client/1.0.2/sockjs.min.js"></script>
-    <script src="/webjars/stomp-websocket/2.3.3/stomp.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -32,18 +30,14 @@
         $('#myModal').modal('hide');
         return false;
     };
-    var stompClient = null;
     var connect = function () {
-        var socket = new SockJS('/chat');
-        stompClient = Stomp.over(socket);
-        stompClient.connect({}, connectionCallback, errorCallback);
-    };
-
-    var connectionCallback = function(frame) {
-        connected = true;
-        console.log('Connected: ' + frame);
-        stompClient.subscribe('/topic/chat.messages', function (e) {
-            var chatEventMessage = JSON.parse(e.body);
+        var source = new EventSource('/chat/stream');
+        source.addEventListener('open', function (e) {
+            console.log('connected');
+        });
+        source.addEventListener('message', function (e) {
+            console.log(e.data);
+            var chatEventMessage = JSON.parse(e.data);
             var message = chatEventMessage.message;
             var messageTime = chatEventMessage.messageTime;
             var outMesage = $(
@@ -53,23 +47,21 @@
                     '</div>'
             );
             $('#chatlog').append(outMesage);
-        });
-    }
-
-    var errorCallback = function(message) {
-        console.log('Websocket error: ', message);
-
-        if (message.startsWith('Whoops!')) {
-            connected = false;
-            // connection lost... need to cleanup and reconnect
-            setTimeout(connect, 10000);
-        }
-    }
-
+        }, false);
+        source.addEventListener('error', function (e) {
+            if (e.readyState == EventSource.CLOSED) {
+                connected = false;
+                connect();
+            }
+        }, false);
+    };
     form.addEventListener('submit', function (e) {
         event.preventDefault();
         var message = $('#message').val();
-        stompClient.send("/app/message", {}, JSON.stringify({from: myName, message: message}));
+        $.post('/chat/message', {from: myName, message: message}, function () {
+            console.log('Sent!');
+            $('#message').val("")
+        });
     }, false);
     $(function () {
         $('#myModal').modal();
