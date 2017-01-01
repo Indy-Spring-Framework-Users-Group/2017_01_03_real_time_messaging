@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real Time Messaging With Spring</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <!--[if IE]>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <![endif]-->
+
+    <link rel="stylesheet" href="/webjars/bootstrap/3.3.1/css/bootstrap.min.css"/>
+
+    <style type="text/css">
+        .chat_scroller { height:400px; overflow-y:scroll; }
+    </style>
+
+    <script src="/webjars/jquery/2.1.3/dist/jquery.min.js"></script>
+    <script src="/webjars/jquery-dateFormat/1.0.2/jquery-dateFormat.min.js"></script>
+    <script src="/webjars/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <script th:inline="javascript">
+        var accessToken = [[${accessToken}]];
+        var userDetails = [[${userDetails}]];
+    </script>
+</head>
+<body style="font-family:Verdana">
+<div class="container">
+    <div class="row " style="padding-top:40px;">
+        <h3 class="text-center" >Spring Framework Real Time Chat Example </h3>
+        <br /><br />
+        <div class="col-md-8 col-md-offset-2">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    RECENT CHAT HISTORY
+                </div>
+                <div id="chat_scroller" class="panel-body chat_scroller">
+                    <ul id="chatlog" class="media-list">
+                       <!-- Chat Messages Here -->
+                    </ul>
+                </div>
+                <div class="panel-footer">
+                    <form role="form" id="form">
+                        <div class="input-group">
+                            <input id="_csrf" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                            <input id="message" type="text" class="form-control" placeholder="Enter Message" />
+                            <span class="input-group-btn">
+                                <button class="btn btn-info" type="submit">SEND</button>
+                            </span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    console.log(userDetails);
+    var myName = userDetails.name;
+    var form = document.getElementById('form');
+    var connected = false;
+    var connect = function () {
+        var source = new EventSource('/chat/stream');
+        source.addEventListener('open', function (e) {
+            console.log('connected');
+        });
+        source.addEventListener('message', function (e) {
+            console.log(e.data);
+            var chatEventMessage = JSON.parse(e.data);
+            var message = chatEventMessage.message;
+            var messageTime = chatEventMessage.messageTime;
+            var outMesage = $(
+                    '<li class="media">' +
+                    '    <div class="media-body">' +
+                    '        <div class="media">' +
+                    '            <a class="pull-left" href="' + message.userUrl + '">' +
+                    '                <img style="height: 40px; width: 40px;" class="media-object img-circle " src="' + message.userAvatarUrl + '" />' +
+                    '            </a>' +
+                    '            <div class="media-body" >' + message.message +
+                    '                <br />' +
+                    '                <small class="text-muted">' + message.from + ' | ' + $.format.toBrowserTimeZone(messageTime, "D MMMM") + ' at ' + $.format.toBrowserTimeZone(messageTime, "h:mmp") + '</small>' +
+                    '                <hr />' +
+                    '            </div>' +
+                    '        </div>' +
+                    '    </div>' +
+                    '</li>'
+            );
+            $('#chatlog').append(outMesage);
+
+            $('#chat_scroller').animate({scrollTop: $('#chat_scroller')[0].scrollHeight});
+        }, false);
+        source.addEventListener('error', function (e) {
+            if (e.readyState == EventSource.CLOSED) {
+                connected = false;
+                connect();
+            }
+        }, false);
+    };
+    form.addEventListener('submit', function (e) {
+        event.preventDefault();
+        var csrf = $('#_csrf').val();
+        var message = $('#message').val();
+        $.post('/chat/message', {from: myName, message: message, _csrf: csrf, userAvatarUrl: userDetails.avatar_url, userUrl: userDetails.html_url }, function () {
+            console.log('Sent!');
+            $('#message').val("")
+        });
+    }, false);
+    $(function () {
+        connect();
+    });
+</script>
+</body>
+</html>

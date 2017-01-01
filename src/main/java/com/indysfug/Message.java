@@ -16,8 +16,13 @@ public class Message {
     @NotEmpty
     private String message;
 
-    public Message(String from, String message) {
+    private String userAvatarUrl;
+    private String userUrl;
+
+    public Message(String from, String message, String userAvatarUrl, String userUrl) {
         this.from = from;
         this.message = message;
+        this.userAvatarUrl = userAvatarUrl;
+        this.userUrl = userUrl;
     }
 }
