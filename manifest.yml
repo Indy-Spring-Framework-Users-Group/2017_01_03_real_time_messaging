@@ -6,3 +6,4 @@ applications:
     path: target/real-time-messaging.jar
     services:
       - rabbitmq
+      - redis
