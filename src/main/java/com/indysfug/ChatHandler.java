@@ -16,6 +16,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * @author russell.scheerer
@@ -36,15 +38,21 @@ public class ChatHandler {
         this.objectMapper = objectMapper;
     }
 
-    public void addEmitter(SseEmitter emitter) {
-        log.info("Adding emitter: {}", emitter.toString());
+    public void addEmitter(SseEmitter emitter, String username) {
+        log.info("Adding emitter for user: {}", username);
+
         emitters.add(emitter);
         emitter.onCompletion(() -> emitters.remove(emitter));
+        publishMessage(new Message("System", username + " entered the room.", null, null));
     }
 
-    public void publishMessage(Message message) throws Exception {
-        String data = objectMapper.writeValueAsString(new ChatMessageEvent(message));
-        rabbitTemplate.convertAndSend(CHAT_MESSAGE_TOPIC, "", data);
+    public void publishMessage(Message message) {
+        try {
+            String data = objectMapper.writeValueAsString(new ChatMessageEvent(message));
+            rabbitTemplate.convertAndSend(CHAT_MESSAGE_TOPIC, "", data);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException jpe) {
+            log.warn("Could not serialize ChatMessageEvent", jpe);
+        }
     }
 
     @RabbitListener(bindings = @QueueBinding(
@@ -54,23 +62,22 @@ public class ChatHandler {
         ChatMessageEvent chatMessageEvent = objectMapper.readValue(message, ChatMessageEvent.class);
 
         log.info("Received ChatMessageEvent from topic: {}", chatMessageEvent);
-        broadcastToSse(chatMessageEvent);
+        broadcastToAllSseEmitters(chatMessageEvent);
     }
 
-    protected void broadcastToSse(ChatMessageEvent chatMessageEvent) {
+    protected void broadcastToAllSseEmitters(ChatMessageEvent chatMessageEvent) {
         log.info("Broadcasting to {} SSE streams", emitters.size());
 
-        List<SseEmitter> emittersToRemove = new ArrayList<>();
-        emitters.forEach((SseEmitter emitter) -> {
-            try {
-                emitter.send(chatMessageEvent, MediaType.APPLICATION_JSON);
-            } catch (Exception e) {
-                log.error("Error publishing to emitter - removing. Reason: {}", e.getMessage());
-                emittersToRemove.add(emitter);
-                emitter.complete();
-            }
-        });
-
-        emittersToRemove.forEach(emitter -> emitters.remove(emitter));
+        emitters.stream().map(sseEmitter -> {
+                SseEmitter emitterToBeRemoved = null;
+                try {
+                    sseEmitter.send(chatMessageEvent, MediaType.APPLICATION_JSON);
+                } catch (Exception e) {
+                    log.error("Error publishing to emitter - removing. Reason: {}", e.getMessage());
+                    sseEmitter.complete();
+                    emitterToBeRemoved = sseEmitter;
+                }
+                return emitterToBeRemoved;
+            }).filter(Objects::nonNull).collect(Collectors.toList()).forEach(emitterToBeRemoved -> emitters.remove(emitterToBeRemoved));
     }
 }

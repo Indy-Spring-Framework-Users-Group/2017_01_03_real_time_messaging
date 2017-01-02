@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.validation.Valid;
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -31,26 +30,31 @@ public class ApplicationController {
 
     @RequestMapping(path = "/", method = RequestMethod.GET)
     public String index(Model model, Authentication auth) {
-        OAuth2Authentication oAuth2Authentication = (OAuth2Authentication) auth;
-        Map<String, Object> userDetails = (Map<String, Object>) oAuth2Authentication.getUserAuthentication().getDetails();
-
-        model.addAttribute("userDetails", userDetails);
+        model.addAttribute("userDetails", getUserDetails(auth));
         return "index";
     }
 
     @RequestMapping(path = "/chat/stream", method = RequestMethod.GET)
-    public SseEmitter stream() throws IOException {
-        log.info("New SSE stream request");
+    public SseEmitter stream(Authentication auth) {
+        String userName = (String) getUserDetails(auth).get("name");
+        log.info("New SSE stream request from: {}", userName);
+
         SseEmitter emitter = new SseEmitter();
-        chatHandler.addEmitter(emitter);
+        chatHandler.addEmitter(emitter, userName);
         return emitter;
     }
 
     @ResponseBody
     @RequestMapping(path = "/chat/message", method = RequestMethod.POST)
-    public Message sendMessage(@Valid Message message) throws Exception {
+    public Message sendMessage(@Valid Message message) {
         log.info("Received message from client - publishing event: {}", message);
         chatHandler.publishMessage(message);
         return message;
+    }
+
+    protected Map<String, Object> getUserDetails(Authentication auth) {
+        OAuth2Authentication oAuth2Authentication = (OAuth2Authentication) auth;
+        Map<String, Object> userDetails = (Map<String, Object>) oAuth2Authentication.getUserAuthentication().getDetails();
+        return userDetails;
     }
 }
