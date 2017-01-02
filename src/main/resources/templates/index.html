@@ -67,7 +67,7 @@
             var chatEventMessage = JSON.parse(e.data);
             var message = chatEventMessage.message;
             var messageTime = chatEventMessage.messageTime;
-            var outMesage = $(
+            var userMesage = $(
                     '<li class="media">' +
                     '    <div class="media-body">' +
                     '        <div class="media">' +
@@ -83,7 +83,29 @@
                     '    </div>' +
                     '</li>'
             );
-            $('#chatlog').append(outMesage);
+            var systemMesage = $(
+                    '<li class="media">' +
+                    '    <div class="media-body">' +
+                    '        <div class="media">' +
+                    '            <a class="pull-left" href="https://twitter.com/tayandyou">' +
+                    '                <img style="height: 40px; width: 40px;" class="media-object img-circle " src="https://pbs.twimg.com/profile_images/712494863573356544/vtXa3ywk_400x400.jpg" />' +
+                    '            </a>' +
+                    '            <div class="media-body" ><i style="color: #333;">' + message.message + '</i>' +
+                    '                <br />' +
+                    '                <small class="text-muted"><b>' + message.from + '</b> | ' + $.format.toBrowserTimeZone(messageTime, "D MMMM") + ' at ' + $.format.toBrowserTimeZone(messageTime, "h:mmp") + '</small>' +
+                    '                <hr />' +
+                    '            </div>' +
+                    '        </div>' +
+                    '    </div>' +
+                    '</li>'
+            );
+
+            // Hack
+            if (message.from === "System") {
+                $('#chatlog').append(systemMesage);
+            } else {
+                $('#chatlog').append(userMesage);
+            }
 
             $('#chat_scroller').animate({scrollTop: $('#chat_scroller')[0].scrollHeight});
         }, false);
