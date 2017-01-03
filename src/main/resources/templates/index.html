@@ -53,8 +53,12 @@
     </div>
 </div>
 <script>
-    console.log(userDetails);
+    console.log(userDetails)
     var myName = userDetails.name;
+    if (!myName) {
+        // fallback to login/username if 'name' is not available
+        myName = userDetails.login;
+    }
     var form = document.getElementById('form');
     var connected = false;
     var connect = function () {

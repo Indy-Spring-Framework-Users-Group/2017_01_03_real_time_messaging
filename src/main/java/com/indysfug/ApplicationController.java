@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.provider.OAuth2Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -37,6 +38,10 @@ public class ApplicationController {
     @RequestMapping(path = "/chat/stream", method = RequestMethod.GET)
     public SseEmitter stream(Authentication auth) {
         String userName = (String) getUserDetails(auth).get("name");
+        if (StringUtils.isEmpty(userName)) {
+            // fallback to login if name is null
+            userName = (String) getUserDetails(auth).get("login");
+        }
         log.info("New SSE stream request from: {}", userName);
 
         SseEmitter emitter = new SseEmitter();
@@ -52,6 +57,7 @@ public class ApplicationController {
         return message;
     }
 
+    // TODO: Create a normalized POJO with username fallback logic
     protected Map<String, Object> getUserDetails(Authentication auth) {
         OAuth2Authentication oAuth2Authentication = (OAuth2Authentication) auth;
         Map<String, Object> userDetails = (Map<String, Object>) oAuth2Authentication.getUserAuthentication().getDetails();
